@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HishabAI — SME Finance Copilot</title>
+<link rel="stylesheet" href="/static/style.css">
+<link rel="icon" href="/static/logo.svg" type="image/svg+xml">
+</head>
+<body>
+<div id="fileNotice">
+  <h2>This page needs the HishabAI server</h2>
+  <p>You opened <b>index.html</b> directly as a file, so it has no data and nothing works.
+     The page only works when the Python server sends it.</p>
+  <p>In the terminal, inside the project folder, run:</p>
+  <p><code>.venv\Scripts\activate</code><br><code>python -m app.server</code></p>
+  <p>Then open <b>http://127.0.0.1:8000</b> in your browser.</p>
+  <hr>
+  <p lang="bn">এই পেজটি সরাসরি ফাইল হিসেবে খোলা হয়েছে, তাই কোনো ডেটা নেই। টার্মিনালে <code>python -m app.server</code> চালিয়ে
+     ব্রাউজারে <b>http://127.0.0.1:8000</b> খুলুন।</p>
+</div>
+
+<header class="topbar">
+  <div class="brand"><img class="logo" src="/static/logo.svg" alt="HishabAI logo"><div><strong>HishabAI</strong><small data-i18n="tagline">SME Finance Copilot</small></div></div>
+  <div class="topright">
+    <span class="live hidden" id="liveDot" data-i18n-title="liveTitle" title="Live: updates automatically"><span></span><b data-i18n="live">Live</b></span>
+    <span id="bizName" class="hidden"></span>
+    <span class="badge hidden" id="roleBadge"></span>
+    <button class="ghost" id="langBtn" title="বাংলা / English">বাংলা</button>
+    <button class="ghost hidden" id="logoutBtn" data-i18n="logout">Log out</button>
+  </div>
+</header>
+
+<div class="synthetic" id="synthBanner">Prototype with synthetic demo data. The agent never moves money; messages go to a sandbox outbox.</div>
+<div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+
+<main>
+  <!-- LOGIN -->
+  <section id="loginView" class="card login hidden">
+    <h1 data-i18n="signIn">Sign in</h1>
+    <p class="muted" data-i18n="demoAccounts">Demo accounts (synthetic data):</p>
+    <div class="demo-users">
+      <button data-u="farhana" data-p="StyleCorner#2026" data-i18n="demoOwner">Owner · Farhana</button>
+      <button data-u="rakib" data-p="Accounts#2026" data-i18n="demoAcct">Accountant · Rakib</button>
+      <button data-u="lender_demo" data-p="LenderDesk#2026" data-i18n="demoLender">Lender · Demo Bank</button>
+    </div>
+    <form id="loginForm">
+      <label><span data-i18n="username">Username</span> <input id="username" autocomplete="username" required maxlength="64"></label>
+      <label><span data-i18n="password">Password</span> <input id="password" type="password" autocomplete="current-password" required maxlength="128"></label>
+      <button type="submit" class="primary" data-i18n="signIn">Sign in</button>
+      <p class="error" id="loginError"></p>
+    </form>
+  </section>
+
+  <!-- OWNER / ACCOUNTANT -->
+  <section id="appView" class="hidden">
+    <div class="alert" id="alertBox">
+      <div><strong id="alertTitle"></strong><div id="alertText" class="muted"></div></div>
+      <button class="primary" id="checkBtn" data-i18n="runCheck">Run cash check</button>
+    </div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="grid2">
+      <div class="card">
+        <h2 data-i18n="salesTitle">Sales: last 26 weeks and AI forecast</h2>
+        <div id="salesChart" class="chart"></div>
+        <p class="muted small" id="forecastNote"></p>
+      </div>
+      <div class="card">
+        <h2 data-i18n="cashTitle">Cash projection (next 8 weeks)</h2>
+        <div id="cashChart" class="chart"></div>
+        <p class="muted small" data-i18n="cashNote">Red line = zero. Dashed line = safety buffer. The green line appears after a payment plan is drafted.</p>
+      </div>
+    </div>
+
+    <!-- live data entry -->
+    <div class="card" id="entryCard">
+      <h2 data-i18n="entryTitle">Update your records</h2>
+      <p class="muted small" data-i18n="entryNote">Everything above recalculates as soon as you save: forecast, cash projection, alert and benchmark.</p>
+      <div class="tabs" id="entryTabs">
+        <button data-entry="week" class="active" data-i18n="entryWeek">Next week's figures</button>
+        <button data-entry="due" data-i18n="entryDue">New customer due (baki)</button>
+        <button data-entry="bill" data-i18n="entryBill">New bill to pay</button>
+      </div>
+
+      <form id="weekForm" class="entry-form">
+        <p class="small"><b data-i18n="weekOf">Week starting</b> <span id="weekStart"></span> · <span class="muted" data-i18n="prefilled">pre-filled from last week; change any number</span></p>
+        <div class="fields">
+          <label><span data-i18n="f_sales">Total sales</span><input name="sales" type="number" min="0" step="any" required></label>
+          <label><span data-i18n="f_credit">of which on credit (baki)</span><input name="credit_sales" type="number" min="0" step="any" required></label>
+          <label><span data-i18n="f_collected">Dues collected</span><input name="receivables_collected" type="number" min="0" step="any"></label>
+          <label><span data-i18n="f_stock">Stock purchases</span><input name="stock_purchases" type="number" min="0" step="any"></label>
+          <label><span data-i18n="f_rent">Rent paid</span><input name="rent" type="number" min="0" step="any"></label>
+          <label><span data-i18n="f_salaries">Salaries paid</span><input name="salaries" type="number" min="0" step="any"></label>
+          <label><span data-i18n="f_utilities">Utilities</span><input name="utilities" type="number" min="0" step="any"></label>
+          <label><span data-i18n="f_other">Other expenses</span><input name="other_expenses" type="number" min="0" step="any"></label>
+          <label><span data-i18n="f_loan">Loan instalments paid</span><input name="loan_repayment" type="number" min="0" step="any"></label>
+          <label><span data-i18n="f_drawings">Owner took out</span><input name="owner_drawings" type="number" min="0" step="any"></label>
+        </div>
+        <p class="small"><span data-i18n="closingCash">Closing cash (calculated)</span>: <b id="closingCash">—</b></p>
+        <button class="primary" data-i18n="saveWeek">Save week</button>
+        <span class="muted small" data-i18n="appendOnly">Past weeks cannot be edited (append-only for audit).</span>
+      </form>
+
+      <form id="dueForm" class="entry-form hidden">
+        <div class="fields">
+          <label><span data-i18n="f_customer">Customer name</span><input name="customer_name" maxlength="80" required></label>
+          <label><span data-i18n="f_phone">Phone</span><input name="customer_phone" maxlength="20" placeholder="01711-000000"></label>
+          <label><span data-i18n="f_amount">Amount (৳)</span><input name="amount" type="number" min="1" step="any" required></label>
+          <label><span data-i18n="f_due">Due date</span><input name="due_date" type="date" required></label>
+          <label class="wide"><span data-i18n="f_note">Note</span><input name="note" maxlength="200"></label>
+        </div>
+        <button class="primary" data-i18n="addDue">Add due</button>
+      </form>
+
+      <form id="billForm" class="entry-form hidden">
+        <div class="fields">
+          <label><span data-i18n="f_payto">Pay to</span><input name="counterparty" maxlength="80" required></label>
+          <label><span data-i18n="f_for">For</span><input name="description" maxlength="120"></label>
+          <label><span data-i18n="f_amount">Amount (৳)</span><input name="amount" type="number" min="1" step="any" required></label>
+          <label><span data-i18n="f_due">Due date</span><input name="due_date" type="date" required></label>
+          <label><span data-i18n="f_category">Type</span>
+            <select name="category">
+              <option value="supplier" data-i18n="cat_supplier">Supplier</option>
+              <option value="utility" data-i18n="cat_utility">Utility</option>
+              <option value="rent" data-i18n="cat_rent">Rent</option>
+              <option value="salary" data-i18n="cat_salary">Salary</option>
+              <option value="tax" data-i18n="cat_tax">Tax</option>
+              <option value="other" data-i18n="cat_other">Other</option>
+            </select></label>
+          <label class="check"><input name="flexible" type="checkbox"> <span data-i18n="f_flexible">Supplier may allow more time</span></label>
+        </div>
+        <button class="primary" data-i18n="addBill">Add bill</button>
+      </form>
+      <p class="small" id="entryMsg"></p>
+    </div>
+
+    <div class="card">
+      <h2 data-i18n="benchTitle">How you compare with similar shops</h2>
+      <p class="muted small" id="benchNote"></p>
+      <div id="benchmark"></div>
+    </div>
+
+    <div class="grid2">
+      <div class="card agent">
+        <h2 data-i18n="briefingTitle">Agent briefing</h2>
+        <pre id="briefing" class="briefing"></pre>
+        <h3 data-i18n="waiting">Waiting for approval</h3>
+        <div id="pending" class="pending"></div>
+        <h3 data-i18n="askTitle">Ask HishabAI</h3>
+        <div id="chatLog" class="chatlog"></div>
+        <form id="chatForm" class="chatform">
+          <input id="chatInput" maxlength="2000" data-i18n-ph="chatPh" placeholder="e.g. Can I afford a second shop?">
+          <button class="primary" data-i18n="send">Send</button>
+        </form>
+        <div class="chips">
+          <button data-chip="second"></button>
+          <button data-chip="drop"></button>
+          <button data-chip="compare"></button>
+          <button data-chip="finance"></button>
+          <button data-chip="transfer"></button>
+          <button data-chip="cash"></button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 data-i18n="whatIf">What-if simulator</h2>
+        <p class="muted small" data-i18n="whatIfNote">Results update as you type.</p>
+        <form id="scenarioForm" class="scenario">
+          <label><span data-i18n="s_sales">Sales change (%)</span> <input name="sales_change_pct" type="number" value="0" step="any" min="-90" max="200"></label>
+          <label><span data-i18n="s_stock">Stock cost change (%)</span> <input name="purchase_cost_change_pct" type="number" value="0" step="any" min="-90" max="200"></label>
+          <label><span data-i18n="s_extra">Extra monthly costs (৳)</span> <input name="extra_monthly_fixed" type="number" value="0" min="0" step="any"></label>
+          <label><span data-i18n="s_once">One-time cost (৳)</span> <input name="one_time_cost" type="number" value="0" min="0" step="any"></label>
+          <label><span data-i18n="s_loan">New loan (৳)</span> <input name="loan_amount" type="number" value="0" min="0" step="any"></label>
+          <label><span data-i18n="s_rate">Loan rate (% / year)</span> <input name="loan_rate" type="number" value="9" min="0" max="50" step="any"></label>
+          <label><span data-i18n="s_months">Loan months</span> <input name="loan_months" type="number" value="24" min="1" max="120"></label>
+          <div class="presets">
+            <button type="button" data-preset="shop2" data-i18n="p_shop2">Second shop</button>
+            <button type="button" data-preset="drop" data-i18n="p_drop">Sales −20%</button>
+            <button type="button" data-preset="reset" data-i18n="p_reset">Reset</button>
+          </div>
+        </form>
+        <div id="scenarioOut" class="scenario-out"></div>
+        <h2 data-i18n="finTitle">Financing options</h2>
+        <div id="financing"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="tabs" id="mainTabs">
+        <button data-tab="dues" class="active" data-i18n="tabDues">Customer dues</button>
+        <button data-tab="bills" data-i18n="tabBills">Bills to pay</button>
+        <button data-tab="outbox" data-i18n="tabOutbox">Sandbox outbox</button>
+        <button data-tab="actions" data-i18n="tabActions">Agent action log</button>
+        <button data-tab="audit" data-i18n="tabAudit">Audit trail</button>
+      </div>
+      <div id="tabBody"></div>
+    </div>
+  </section>
+
+  <!-- LENDER -->
+  <section id="lenderView" class="hidden">
+    <div class="card">
+      <h2 data-i18n="lenderTitle">Reports shared with you</h2>
+      <p class="muted" data-i18n="lenderNote">You only see what a business owner has explicitly approved to share.</p>
+      <div id="lenderReports"></div>
+    </div>
+  </section>
+</main>
+<script src="/static/app.js"></script>
+</body>
+</html>

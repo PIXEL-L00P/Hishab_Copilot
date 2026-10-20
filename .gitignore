@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+.DS_Store
+# local database: rebuilt by `python scripts/seed_db.py` (the server also creates it on first start)
+data/hishab.db
+data/hishab.db-journal
+# a model retrained on this computer if the saved one cannot be loaded (see app/forecast.py)
+models/forecast_model_local.joblib
+models/metrics_local.json
